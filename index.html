@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timeline Pekerjaan Video — data.json global</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="mb-6 flex items-center justify-between gap-3 flex-wrap">
+      <h1 class="text-2xl sm:text-3xl font-bold">📽️ Timeline Pekerjaan Video</h1>
+      <div class="flex gap-2">
+        <button type="button" id="btnBackupJSON" class="px-4 py-2 rounded-2xl font-semibold bg-indigo-600 text-white">Backup JSON</button>
+        <button type="button" id="btnClearAll" class="px-4 py-2 rounded-2xl font-semibold bg-rose-600 text-white">Hapus Semua</button>
+      </div>
+    </header>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl shadow p-5">
+          <form id="orderForm" class="space-y-3">
+            <input type="hidden" id="orderId" />
+            <div>
+              <label class="block text-sm font-medium mb-1">Nama Klien</label>
+              <input id="clientName" class="w-full border rounded-xl px-3 py-2" required />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">Tanggal Masuk</label>
+                <input id="dateIn" type="date" class="w-full border rounded-xl px-3 py-2" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Tanggal Selesai</label>
+                <input id="dateOut" type="date" class="w-full border rounded-xl px-3 py-2" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Jenis Order</label>
+              <select id="orderType" class="w-full border rounded-xl px-3 py-2">
+                <option value="Shooting">Shooting</option>
+                <option value="Editing">Editing</option>
+                <option value="Shooting & Editing">Shooting & Editing</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Note Klien</label>
+              <textarea id="clientNote" class="w-full border rounded-xl px-3 py-2" rows="3"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Revisi</label>
+              <input id="revision" type="number" min="0" value="0" class="w-full border rounded-xl px-3 py-2" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 border rounded-xl px-3 py-2">
+                <input id="backupInternal" type="checkbox" class="h-5 w-5" /> Backup HDD Internal
+              </label>
+              <label class="flex items-center gap-2 border rounded-xl px-3 py-2">
+                <input id="backupExternal" type="checkbox" class="h-5 w-5" /> Backup HDD Eksternal
+              </label>
+            </div>
+            <div class="flex gap-2 pt-2">
+              <button type="submit" class="px-4 py-2 rounded-2xl font-semibold bg-indigo-600 text-white">Simpan</button>
+              <button type="button" id="btnReset" class="px-4 py-2 rounded-2xl font-semibold bg-white border border-gray-300">Reset</button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Untuk menyimpan global lintas perangkat: klik <b>Backup JSON</b> lalu upload file itu ke repo sebagai <code>data.json</code>.</p>
+          </form>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-2xl shadow p-5 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-3 py-2 text-left">Klien</th>
+                <th class="px-3 py-2 text-left">Masuk</th>
+                <th class="px-3 py-2 text-left">Selesai</th>
+                <th class="px-3 py-2 text-left">Jenis</th>
+                <th class="px-3 py-2 text-left">Note</th>
+                <th class="px-3 py-2 text-left">Revisi</th>
+                <th class="px-3 py-2 text-left">Backup</th>
+                <th class="px-3 py-2 text-left">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+  function $(id){ return document.getElementById(id); }
+  var STORAGE_KEY = 'video_timeline_orders_v1';
+  var orders = [];
+
+  function fmt(d){ return d ? new Date(d).toLocaleDateString('id-ID') : ''; }
+  function genId(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('id_'+Date.now()+'_'+Math.random().toString(16).slice(2)); }
+
+  // Muat dari data.json (global), fallback ke localStorage
+  async function loadData(){
+    try{
+      const res = await fetch('./data.json', {cache:'no-store'});
+      if(res.ok){
+        orders = await res.json();
+        persist();
+        return;
+      }
+    }catch(e){ /* ignore */ }
+    try { orders = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e){ orders = []; }
+  }
+
+  function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(orders)); }
+
+  function render(){
+    const body = $('tableBody'); body.innerHTML = '';
+    if(!orders || orders.length === 0){
+      body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">Belum ada data</td></tr>';
+      return;
+    }
+    orders.forEach(function(o){
+      const row = document.createElement('tr');
+      row.className = 'hover:bg-gray-50';
+      row.innerHTML = `
+        <td class="px-3 py-3 align-top">${o.clientName || '-'}</td>
+        <td class="px-3 py-3 align-top">${fmt(o.dateIn)}</td>
+        <td class="px-3 py-3 align-top">${fmt(o.dateOut)}</td>
+        <td class="px-3 py-3 align-top">${o.orderType || ''}</td>
+        <td class="px-3 py-3 align-top max-w-[320px]">${o.clientNote || ''}</td>
+        <td class="px-3 py-3 align-top">${(o.revision != null ? o.revision : 0)}</td>
+        <td class="px-3 py-3 align-top">
+          <div class="flex flex-col gap-1">
+            <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${o.backupInternal? 'bg-emerald-100 text-emerald-700':'bg-gray-200 text-gray-700'}">Internal: ${o.backupInternal? '✅':'—'}</span>
+            <span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${o.backupExternal? 'bg-emerald-100 text-emerald-700':'bg-gray-200 text-gray-700'}">Eksternal: ${o.backupExternal? '✅':'—'}</span>
+          </div>
+        </td>
+        <td class="px-3 py-3 align-top">
+          <div class="flex gap-2">
+            <button type="button" class="px-3 py-1.5 rounded-xl border" data-act="edit" data-id="${o.id}">Edit</button>
+            <button type="button" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white" data-act="del" data-id="${o.id}">Hapus</button>
+          </div>
+        </td>`;
+      body.appendChild(row);
+    });
+  }
+
+  function upsertFromForm(ev){
+    ev.preventDefault();
+    const id = $('orderId').value || genId();
+    const obj = {
+      id,
+      clientName: $('clientName').value.trim(),
+      dateIn: $('dateIn').value,
+      dateOut: $('dateOut').value,
+      orderType: $('orderType').value,
+      clientNote: $('clientNote').value.trim(),
+      revision: parseInt($('revision').value || '0', 10) || 0,
+      backupInternal: $('backupInternal').checked,
+      backupExternal: $('backupExternal').checked
+    };
+    const idx = orders.findIndex(x => x.id === id);
+    if(idx >= 0) orders[idx] = obj; else orders.unshift(obj);
+    persist(); render();
+    $('orderForm').reset(); $('orderId').value='';
+  }
+
+  function editOrder(id){
+    const o = orders.find(x => x.id === id);
+    if(!o) return;
+    $('orderId').value = o.id;
+    $('clientName').value = o.clientName || '';
+    $('dateIn').value = o.dateIn || '';
+    $('dateOut').value = o.dateOut || '';
+    $('orderType').value = o.orderType || 'Shooting';
+    $('clientNote').value = o.clientNote || '';
+    $('revision').value = (o.revision != null ? o.revision : 0);
+    $('backupInternal').checked = !!o.backupInternal;
+    $('backupExternal').checked = !!o.backupExternal;
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function deleteOrder(id){
+    if(!confirm('Hapus order ini?')) return;
+    orders = orders.filter(x => x.id !== id);
+    persist(); render();
+  }
+
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(orders, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function bindEvents(){
+    $('orderForm').addEventListener('submit', upsertFromForm);
+    $('btnReset').addEventListener('click', () => { $('orderForm').reset(); $('orderId').value=''; });
+    $('btnBackupJSON').addEventListener('click', exportJSON);
+    $('btnClearAll').addEventListener('click', () => {
+      if(confirm('Hapus semua data di perangkat ini?')){
+        orders = []; persist(); render();
+      }
+    });
+    $('tableBody').addEventListener('click', function(e){
+      let el = e.target;
+      while(el && el !== this){
+        if(el.tagName === 'BUTTON' && el.dataset.act){
+          const id = el.dataset.id;
+          if(el.dataset.act === 'edit') editOrder(id);
+          if(el.dataset.act === 'del') deleteOrder(id);
+          break;
+        }
+        el = el.parentNode;
+      }
+    });
+  }
+
+  (async function init(){
+    await loadData();
+    render();
+    bindEvents();
+  })();
+</script>
+</body>
+</html>

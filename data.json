@@ -1,0 +1,35 @@
+[
+  {
+    "id": "demo-1",
+    "clientName": "PT Nusantara Media",
+    "dateIn": "2025-08-20",
+    "dateOut": "2025-08-22",
+    "orderType": "Shooting",
+    "clientNote": "Liputan event peluncuran produk. Kamera 2 unit.",
+    "revision": 0,
+    "backupInternal": true,
+    "backupExternal": false
+  },
+  {
+    "id": "demo-2",
+    "clientName": "CV Kreatif Jaya",
+    "dateIn": "2025-08-23",
+    "dateOut": "2025-08-25",
+    "orderType": "Editing",
+    "clientNote": "Video company profile durasi 3 menit.",
+    "revision": 1,
+    "backupInternal": true,
+    "backupExternal": true
+  },
+  {
+    "id": "demo-3",
+    "clientName": "Personal — Wedding Dika & Rani",
+    "dateIn": "2025-08-26",
+    "dateOut": "2025-08-27",
+    "orderType": "Shooting & Editing",
+    "clientNote": "Highlight 1 menit + dokumentasi lengkap.",
+    "revision": 0,
+    "backupInternal": false,
+    "backupExternal": true
+  }
+]
